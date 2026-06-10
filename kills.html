@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Убийства манекенов</title>
+    <style>
+        body {
+            background: #1e2a3a;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-top: 50px;
+        }
+        .back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        .back:hover {
+            background: #2980b9;
+        }
+        .stats-box {
+            background: #2c3e50;
+            border-radius: 20px;
+            padding: 30px;
+            display: inline-block;
+            margin-top: 50px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .kills-count {
+            font-size: 72px;
+            font-weight: bold;
+            background: #f39c12;
+            color: #2c3e50;
+            display: inline-block;
+            padding: 20px 40px;
+            border-radius: 60px;
+            margin: 20px 0;
+        }
+        .button-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        .action-btn {
+            background: #f39c12;
+            color: #2c3e50;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .action-btn:hover {
+            background: #e67e22;
+            transform: scale(1.02);
+        }
+        .action-btn:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <button class="back" onclick="window.location.href='index.html'">← Назад</button>
+    <div class="stats-box">
+        <h1>📊 Убийства манекенов</h1>
+        <div class="kills-count" id="killsDisplay">0</div>
+        <p>Всего уничтожено тренировочных манекенов</p>
+        <div class="button-panel">
+            <button class="action-btn" id="buyChipBtn">💾 Купить чип за 100 убийств</button>
+            <button class="action-btn" id="exchange5Btn">🔄 Обменять 5 убийств на 10 монет</button>
+            <button class="action-btn" id="exchange15Btn">🎁 Обменять 15 убийств на обычный ящик</button>
+            <button class="action-btn" id="buyAssassinBtn">🗡️ Купить Ассасина (500 убийств)</button>
+            <button class="action-btn" id="cheatKillsBtn">✨ +10 убийств (чит)</button>
+        </div>
+    </div>
+    <div id="toastMsg" class="toast"></div>
+
+    <script>
+        function showToast(msg, duration=2000) {
+            const toast = document.getElementById('toastMsg');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        function getKills() {
+            const kills = localStorage.getItem('mannequinKills');
+            return kills ? parseInt(kills) : 0;
+        }
+
+        function setKills(newKills) {
+            localStorage.setItem('mannequinKills', newKills);
+            updateKillsDisplay();
+        }
+
+        function updateKillsDisplay() {
+            const kills = getKills();
+            document.getElementById('killsDisplay').innerText = kills;
+            document.getElementById('buyChipBtn').disabled = kills < 100;
+            document.getElementById('exchange5Btn').disabled = kills < 5;
+            document.getElementById('exchange15Btn').disabled = kills < 15;
+            document.getElementById('buyAssassinBtn').disabled = kills < 500;
+        }
+
+        function loadGameState() {
+            const saved = localStorage.getItem('lootboxGame');
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch(e) { return {}; }
+            }
+            return {};
+        }
+
+        function saveGameState(state) {
+            localStorage.setItem('lootboxGame', JSON.stringify(state));
+        }
+
+        function addCoins(amount) {
+            const state = loadGameState();
+            state.coins = (state.coins || 0) + amount;
+            saveGameState(state);
+            showToast(`+${amount} монет! Теперь у вас ${state.coins} монет.`);
+        }
+
+        function addCommonLootbox() {
+            const state = loadGameState();
+            if (!state.inventory) state.inventory = {};
+            const lootboxName = "Обычный лутбокс";
+            if (state.inventory[lootboxName]) {
+                state.inventory[lootboxName].count++;
+            } else {
+                state.inventory[lootboxName] = {
+                    name: lootboxName,
+                    emoji: "🎁",
+                    type: "lootbox",
+                    lootboxType: "common",
+                    count: 1
+                };
+            }
+            saveGameState(state);
+            showToast("🎁 Вы получили обычный лутбокс! Он появился в инвентаре.");
+        }
+
+        function addChip() {
+            const state = loadGameState();
+            if (!state.inventory) state.inventory = {};
+            const chipName = "Чип";
+            if (state.inventory[chipName]) {
+                state.inventory[chipName].count++;
+            } else {
+                state.inventory[chipName] = {
+                    name: chipName,
+                    emoji: "💾",
+                    price: 0,
+                    type: "item",
+                    count: 1
+                };
+            }
+            saveGameState(state);
+            showToast("💾 Вы получили чип! Он появился в инвентаре.");
+        }
+
+        function buyAssassin() {
+            const state = loadGameState();
+            if (state.assassinOwned) {
+                showToast("Ассасин уже куплен!");
+                return;
+            }
+            const kills = getKills();
+            if (kills >= 500) {
+                setKills(kills - 500);
+                state.assassinOwned = true;
+                saveGameState(state);
+                showToast("🗡️ Ассасин куплен! Теперь вы можете выбрать его на странице персонажей.");
+            } else {
+                showToast("Недостаточно убийств! Нужно 500.");
+            }
+        }
+
+        document.getElementById('buyChipBtn').addEventListener('click', () => {
+            let kills = getKills();
+            if (kills >= 100) {
+                setKills(kills - 100);
+                addChip();
+            } else {
+                showToast("Недостаточно убийств! Нужно 100.");
+            }
+        });
+
+        document.getElementById('exchange5Btn').addEventListener('click', () => {
+            let kills = getKills();
+            if (kills >= 5) {
+                setKills(kills - 5);
+                addCoins(10);
+            } else {
+                showToast("Недостаточно убийств! Нужно 5.");
+            }
+        });
+
+        document.getElementById('exchange15Btn').addEventListener('click', () => {
+            let kills = getKills();
+            if (kills >= 15) {
+                setKills(kills - 15);
+                addCommonLootbox();
+            } else {
+                showToast("Недостаточно убийств! Нужно 15.");
+            }
+        });
+
+        document.getElementById('buyAssassinBtn').addEventListener('click', buyAssassin);
+
+        document.getElementById('cheatKillsBtn').addEventListener('click', () => {
+            let kills = getKills();
+            setKills(kills + 10);
+            showToast("+10 убийств (чит)");
+        });
+
+        updateKillsDisplay();
+        setInterval(updateKillsDisplay, 2000);
+    </script>
+</body>
+</html>
