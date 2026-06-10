@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лутбокс магазин + редактор карт</title>
+    <style>
+        .luche-button {
+    width: 80px;
+    height: 80px;
+    background-color: #e84393;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    border-radius: 12px;
+    transition: 0.2s;
+    text-align: center;
+}
+.luche-button:hover {
+    background-color: #c2185b;
+    transform: scale(1.05);
+}
+        /* Основные стили (как в предыдущих полных версиях) */
+        .editor-button { width: 80px; height: 80px; background-color: #e67e22; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-family: Arial, sans-serif; font-size: 14px; border-radius: 12px; transition: 0.2s; text-align: center; }
+        .editor-button:hover { background-color: #d35400; transform: scale(1.05); }
+        .button-group { position: fixed; left: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 20px; z-index: 100; }
+        .small-square, .new-button, .third-button, .stats-button, .play-button { width: 80px; height: 80px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-family: Arial, sans-serif; font-size: 18px; border-radius: 12px; transition: 0.2s; text-align: center; }
+        .small-square { background-color: #3498db; }
+        .small-square:hover { background-color: #2980b9; transform: scale(1.05); }
+        .new-button { background-color: #2ecc71; font-size: 14px; }
+        .new-button:hover { background-color: #27ae60; }
+        .third-button { background-color: #f1c40f; color: black; font-size: 14px; }
+        .third-button:hover { background-color: #e67e22; }
+        .stats-button { background-color: #9b59b6; font-size: 14px; }
+        .stats-button:hover { background-color: #8e44ad; transform: scale(1.05); }
+        .play-button { background-color: #1abc9c; font-size: 14px; }
+        .play-button:hover { background-color: #16a085; transform: scale(1.05); }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .big-square { width: 80%; height: 80%; max-width: 900px; background-color: white; border-radius: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.5); position: relative; overflow: auto; color: black; font-family: Arial, sans-serif; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #333; background: none; border: none; z-index: 10; }
+        .close-btn:hover { color: #888; }
+        .product-card { border: 2px solid #333; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; font-size: 16px; gap: 10px; flex-wrap: wrap; }
+        .product-card button { background-color: #3498db; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+        .product-card button:hover { background-color: #2980b9; }
+        .stat-item { display: flex; justify-content: space-between; align-items: center; background-color: #ecf0f1; padding: 12px; border-radius: 12px; font-size: 18px; font-weight: bold; }
+        .stat-item button { background-color: #2ecc71; color: white; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+        .stat-item button:hover { background-color: #27ae60; }
+        .custom-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background-color: #2c3e50; color: white; padding: 12px 24px; border-radius: 40px; font-family: Arial, sans-serif; font-size: 16px; z-index: 2000; opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .custom-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .editor-layout { display: flex; gap: 20px; padding: 20px; flex-wrap: wrap; }
+        .canvas-container { flex: 2; min-width: 500px; border: 2px solid #aaa; background: #ecf0f1; border-radius: 12px; overflow: auto; }
+        #mapCanvas { display: block; background: #2c3e50; cursor: crosshair; margin: 0 auto; }
+        .walls-panel { flex: 1; min-width: 200px; background: #f4f6f7; border-radius: 12px; padding: 12px; max-height: 500px; overflow-y: auto; }
+        .wall-item { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 8px; margin-bottom: 8px; cursor: grab; user-select: none; }
+        .wall-item:active { cursor: grabbing; }
+        .wall-item.dragging { opacity: 0.5; }
+        .wall-buttons { display: flex; gap: 6px; margin-top: 6px; }
+        .wall-buttons button { background: #e67e22; border: none; border-radius: 4px; color: white; padding: 2px 6px; cursor: pointer; font-size: 12px; }
+        .wall-buttons button.delete-wall { background: #e74c3c; }
+        .add-wall-form { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 15px; }
+        .add-wall-form input { width: 80px; padding: 4px; }
+        .mode-card { background: #ecf0f1; border-radius: 20px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.2s; cursor: pointer; }
+        .mode-card:hover { transform: scale(1.02); background: #e0e4e8; }
+        .mode-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
+        .mode-card p { margin: 0 0 15px 0; color: #555; font-size: 14px; }
+        .mode-play-btn { background: #2ecc71; color: white; border: none; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .mode-play-btn:hover { background: #27ae60; }
+
+        /* Стиль для большого превью персонажа по центру */
+        .character-preview {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            background-color: #2c3e50;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 50;
+            font-family: Arial, sans-serif;
+            color: white;
+            transition: 0.2s;
+        }
+        .preview-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+        }
+        .preview-name {
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Большой квадрат превью персонажа -->
+    <div class="character-preview" id="characterPreview">
+        <div class="preview-avatar" id="previewAvatar"></div>
+        <div class="preview-name" id="previewName">Ноут</div>
+    </div>
+
+    <!-- Кнопка KILLS -->
+    <div style="position: fixed; top: 20px; left: 20px; width: 100px; height: 40px; background-color: #f39c12; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 200; font-family: Arial, sans-serif; font-weight: bold;" onclick="window.location.href='kills.html'">KILLS</div>
+    <div class="button-group">
+        <div class="editor-button" id="editorButton">Карты</div>
+        <div class="small-square" id="smallSquare">Магазин</div>
+        <div class="new-button" id="newButton">Инвентарь</div>
+        <div class="third-button" id="thirdButton">Страница</div>
+        <div class="luche-button" id="lucheButton">ЛУЧЕ</div>
+        <div class="stats-button" id="statsButton">Статы</div>
+        <div class="play-button" id="playButton">Играть</div>
+    </div>
+
+    <!-- МАГАЗИН -->
+    <div class="overlay" id="overlay">
+        <div class="big-square">
+            <button class="close-btn" id="closeBtn">&times;</button>
+            <div style="padding: 60px 20px 20px 20px;">
+                <h2>💰 Твой баланс: <span id="coinAmount">100</span> монет</h2>
+                <button id="cheatCoins" style="position: fixed; bottom: 90px; left: 20px; background: #f39c12; color: black; border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer;">+100 монет</button>
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                    <div class="product-card"><div>🎁 Обычный лутбокс</div><div>Цена: 5 монет</div><button class="buy-lootbox" data-type="common">Купить</button></div>
+                    <div class="product-card"><div>✨ Редкий лутбокс</div><div>Цена: 15 монет</div><button class="buy-lootbox" data-type="rare">Купить</button></div>
+                    <div class="product-card"><div>💎 Эпический лутбокс</div><div>Цена: 30 монет</div><button class="buy-lootbox" data-type="epic">Купить</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ИНВЕНТАРЬ -->
+    <div class="overlay" id="overlay2">
+        <div class="big-square">
+            <button class="close-btn" id="closeBtn2">&times;</button>
+            <div style="padding: 60px 20px 20px 20px;">
+                <h2>🎒 Инвентарь</h2>
+                <div id="inventoryList" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;"><p style="color: gray;">Пока пусто. Купи лутбокс в магазине!</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- СТАТЫ -->
+    <div class="overlay" id="overlayStats">
+        <div class="big-square">
+            <button class="close-btn" id="closeBtnStats">&times;</button>
+            <div style="padding: 60px 20px 20px 20px;">
+                <h2>📊 Характеристики</h2>
+                <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 20px;">
+                    <div class="stat-item"><span>⚔️ Урон: <span id="damageStat">1</span></span><button class="upgrade-stat" data-stat="damage">+1</button></div>
+                    <div class="stat-item"><span>💨 Скорость: <span id="speedStat">1</span></span><button class="upgrade-stat" data-stat="speed">+1</button></div>
+                    <div class="stat-item"><span>❤️ HP: <span id="hpStat">10</span></span><button class="upgrade-stat" data-stat="hp">+1</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- РЕДАКТОР КАРТ -->
+    <div class="overlay" id="overlayEditor">
+        <div class="big-square" style="max-width: 1100px;">
+            <button class="close-btn" id="closeBtnEditor">&times;</button>
+            <div style="padding: 20px;">
+                <h2>🗺️ Редактор карт (стены)</h2>
+                <div class="editor-layout">
+                    <div class="canvas-container">
+                        <canvas id="mapCanvas" width="750" height="450" style="border:1px solid #000; background:#2c3e50;"></canvas>
+                        <div style="font-size:12px; text-align:center;">Перетащите стену из списка или кликните на поле, чтобы добавить новую (80x60)</div>
+                    </div>
+                    <div class="walls-panel">
+                        <h3>Стены</h3>
+                        <div id="wallsListPanel"></div>
+                        <div class="add-wall-form">
+                            <strong>Добавить стену:</strong>
+                            <label>X: <input type="number" id="newWallX" value="150" step="10"></label>
+                            <label>Y: <input type="number" id="newWallY" value="150" step="10"></label>
+                            <label>Ширина: <input type="number" id="newWallW" value="80" step="10"></label>
+                            <label>Высота: <input type="number" id="newWallH" value="60" step="10"></label>
+                            <button id="addWallByCoordsBtn" class="buy-btn">➕ Добавить</button>
+                        </div>
+                        <button id="saveWallsBtn" style="margin-top: 10px; background:#2ecc71; width:100%;">💾 Сохранить стены</button>
+                        <button id="resetWallsBtn" style="margin-top: 5px; background:#e74c3c; width:100%;">🗑️ Удалить все стены</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="purchaseToast" class="custom-toast"></div>
+    <button id="resetGameBtn" style="position: fixed; bottom: 20px; right: 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; z-index: 1000;">🔄 Новая игра</button>
+
+    <!-- Окно выбора режима игры -->
+    <div class="overlay" id="overlayGameMode">
+        <div class="big-square" style="max-width: 600px;">
+            <button class="close-btn" id="closeGameModeBtn">&times;</button>
+            <div style="padding: 40px 20px 20px 20px; text-align: center;">
+                <h2>Выберите режим</h2>
+                <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 30px;">
+                    <div class="mode-card" id="mode1">
+                        <h3>🎮 Обычный режим</h3>
+                        <p>Стандартная игра с манекеном, рудником и камерой</p>
+                        <button class="mode-play-btn" data-mode="normal">Играть</button>
+                    </div>
+                    <div class="mode-card" id="mode2">
+                        <h3>⚡ Сложный режим</h3>
+                        <p>Увеличенная сложность: манекен быстрее, больше HP</p>
+                        <button class="mode-play-btn" data-mode="hard">Играть</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== Управление окнами ==========
+        const small = document.getElementById('smallSquare');
+        const overlay = document.getElementById('overlay');
+        const close = document.getElementById('closeBtn');
+        small.addEventListener('click', () => overlay.style.display = 'flex');
+        close.addEventListener('click', () => overlay.style.display = 'none');
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.style.display = 'none'; });
+
+        const newButton = document.getElementById('newButton');
+        const overlay2 = document.getElementById('overlay2');
+        const closeBtn2 = document.getElementById('closeBtn2');
+        newButton.addEventListener('click', () => { updateInventoryDisplay(); overlay2.style.display = 'flex'; });
+        closeBtn2.addEventListener('click', () => overlay2.style.display = 'none');
+        overlay2.addEventListener('click', (e) => { if (e.target === overlay2) overlay2.style.display = 'none'; });
+
+        const thirdButton = document.getElementById('thirdButton');
+        thirdButton.addEventListener('click', () => { window.location.href = 'procachca.html'; });
+
+        const playButton = document.getElementById('playButton');
+        const overlayGameMode = document.getElementById('overlayGameMode');
+        const closeGameModeBtn = document.getElementById('closeGameModeBtn');
+        playButton.addEventListener('click', () => { overlayGameMode.style.display = 'flex'; });
+        closeGameModeBtn.addEventListener('click', () => overlayGameMode.style.display = 'none');
+        overlayGameMode.addEventListener('click', (e) => { if (e.target === overlayGameMode) overlayGameMode.style.display = 'none'; });
+
+        document.querySelectorAll('.mode-play-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const mode = btn.getAttribute('data-mode');
+                localStorage.setItem('selectedGameMode', mode);
+                if (mode === 'hard') window.location.href = 'vishibal.html';
+                else window.location.href = 'game.html';
+            });
+        });
+
+        // ========== Константы лутбоксов ==========
+        const lootboxTypes = {
+            common: { name: "Обычный лутбокс", emoji: "🎁", price: 5 },
+            rare:   { name: "Редкий лутбокс",  emoji: "✨", price: 15 },
+            epic:   { name: "Эпический лутбокс", emoji: "💎", price: 30 }
+        };
+        const lootPools = {
+            common: [
+                { name: "яблоко", emoji: "🍎", price: 3, bonus: { speed: 1 } },
+                { name: "меч", emoji: "⚔️", price: 10, bonus: { damage: 2 } },
+                { name: "щит", emoji: "🛡️", price: 7, bonus: { hp: 2 } }
+            ],
+            rare: [
+                { name: "курочка гриль", emoji: "🍗", price: 20, bonus: { hp: 5 } },
+                { name: "стальной щит", emoji: "🛡️", price: 25, bonus: { hp: 4, damage: 1 } },
+                { name: "пистолет", emoji: "🔫", price: 30, bonus: { damage: 5 } }
+            ],
+            epic: [
+                { name: "алмазный меч", emoji: "⚔️💎", price: 50, bonus: { damage: 10 } },
+                { name: "зелье здоровья", emoji: "🧪", price: 40, bonus: { hp: 10 } },
+                { name: "золотое яблоко", emoji: "🍎✨", price: 45, bonus: { speed: 3, hp: 5 } }
+            ]
+        };
+
+        // ========== Переменные ==========
+        let coins = 100;
+        let inventory = {};
+        let baseDamage = 1;
+        let baseSpeed = 1;
+        let baseHp = 10;
+        let currentHp = 10;
+        let totalDamage = 1;
+        let totalSpeed = 1;
+        let totalMaxHp = 10;
+        let mineEquipped = false;
+        let selectedCharacter = 'note'; // для превью
+
+        const coinSpan = document.getElementById('coinAmount');
+        const damageSpan = document.getElementById('damageStat');
+        const speedSpan = document.getElementById('speedStat');
+        const hpSpan = document.getElementById('hpStat');
+
+        // ========== Превью персонажа ==========
+        function updateCharacterPreview() {
+            const previewAvatar = document.getElementById('previewAvatar');
+            const previewName = document.getElementById('previewName');
+            if (selectedCharacter === 'mine') {
+                previewAvatar.style.backgroundColor = '#e74c3c';
+                previewName.innerText = '⛏️ Рудник';
+            } else if (selectedCharacter === 'camera') {
+                previewAvatar.style.backgroundColor = '#9b59b6';
+                previewName.innerText = '📷 Камера';
+            } else if (selectedCharacter === 'assassin') {
+                previewAvatar.style.backgroundColor = '#111';
+                previewName.innerText = '🗡️ Ассасин';
+            } else {
+                previewAvatar.style.backgroundColor = '#95a5a6';
+                previewName.innerText = '💻 Ноут';
+            }
+        }
+
+        // ========== Функции ==========
+        function recalculateStats() {
+            let bonusDamage = 0, bonusSpeed = 0, bonusHp = 0;
+            for (let key in inventory) {
+                const item = inventory[key];
+                if (item.type === 'item') {
+                    for (let pool of Object.values(lootPools)) {
+                        const loot = pool.find(l => l.name === item.name);
+                        if (loot && loot.bonus) {
+                            bonusDamage += (loot.bonus.damage || 0) * item.count;
+                            bonusSpeed += (loot.bonus.speed || 0) * item.count;
+                            bonusHp += (loot.bonus.hp || 0) * item.count;
+                            break;
+                        }
+                    }
+                }
+            }
+            totalDamage = baseDamage + bonusDamage;
+            totalSpeed = baseSpeed + bonusSpeed;
+            totalMaxHp = baseHp + bonusHp;
+            if (currentHp > totalMaxHp) currentHp = totalMaxHp;
+            damageSpan.innerText = totalDamage;
+            speedSpan.innerText = totalSpeed;
+            hpSpan.innerText = totalMaxHp;
+            saveGameData();
+        }
+
+        function saveGameData() {
+            let gameState = {
+                coins, inventory, baseDamage, baseSpeed, baseHp, currentHp,
+                totalDamage, totalSpeed, totalMaxHp, mineEquipped, selectedCharacter
+            };
+            const old = localStorage.getItem('lootboxGame');
+            if (old) {
+                try {
+                    const oldState = JSON.parse(old);
+                    if (oldState.mineOwned !== undefined) gameState.mineOwned = oldState.mineOwned;
+                    if (oldState.cameraOwned !== undefined) gameState.cameraOwned = oldState.cameraOwned;
+                    if (oldState.assassinOwned !== undefined) gameState.assassinOwned = oldState.assassinOwned;
+                } catch(e) {}
+            }
+            localStorage.setItem('lootboxGame', JSON.stringify(gameState));
+        }
+
+        function loadGameData() {
+            const saved = localStorage.getItem('lootboxGame');
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    coins = state.coins;
+                    inventory = state.inventory || {};
+                    baseDamage = state.baseDamage || 1;
+                    baseSpeed = state.baseSpeed || 1;
+                    baseHp = state.baseHp || 10;
+                    currentHp = state.currentHp !== undefined ? state.currentHp : baseHp;
+                    mineEquipped = state.mineEquipped || false;
+                    selectedCharacter = state.selectedCharacter || 'note';
+                    recalculateStats();
+                } catch(e) { console.warn(e); }
+            } else {
+                coins = 100;
+                inventory = {};
+                baseDamage = 1; baseSpeed = 1; baseHp = 10; currentHp = 10; mineEquipped = false; selectedCharacter = 'note';
+                recalculateStats();
+            }
+            updateCoinsDisplay();
+            updateInventoryDisplay();
+            updateCharacterPreview();
+        }
+
+        function updateCoinsDisplay() { coinSpan.innerText = coins; saveGameData(); }
+        function showToast(msg, dur=2000) { const toast = document.getElementById('purchaseToast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), dur); }
+
+        function updateInventoryDisplay() {
+            const container = document.getElementById('inventoryList');
+            if (!container) return;
+            const items = Object.values(inventory);
+            if (items.length === 0) { container.innerHTML = '<p style="color: gray;">Пока пусто. Купи лутбокс в магазине!</p>'; return; }
+            container.innerHTML = '';
+            items.forEach(item => {
+                const div = document.createElement('div'); div.className = 'product-card';
+                if (item.type === 'lootbox') {
+                    div.innerHTML = `<div>${item.emoji} ${item.name} x${item.count}</div><div>Цена покупки: ${lootboxTypes[item.lootboxType].price} монет</div><button class="open-lootbox-btn" data-lootbox-name="${item.name}" data-lootbox-type="${item.lootboxType}">Открыть</button>`;
+                } else {
+                    let bonusText = '';
+                    for (let pool of Object.values(lootPools)) {
+                        const loot = pool.find(l => l.name === item.name);
+                        if (loot && loot.bonus) {
+                            const parts = [];
+                            if (loot.bonus.damage) parts.push(`⚔️+${loot.bonus.damage}`);
+                            if (loot.bonus.speed) parts.push(`💨+${loot.bonus.speed}`);
+                            if (loot.bonus.hp) parts.push(`❤️+${loot.bonus.hp}`);
+                            bonusText = parts.join(' ');
+                            break;
+                        }
+                    }
+                    div.innerHTML = `<div>${item.emoji} ${item.name} x${item.count} ${bonusText}</div><div>${item.price} монет/шт</div><button class="sell-btn" data-item="${item.name}" data-price="${item.price}">Продать (-50%)</button>`;
+                }
+                container.appendChild(div);
+            });
+            saveGameData();
+        }
+
+        document.querySelector('#overlay .big-square').addEventListener('click', (e) => {
+            const t = e.target;
+            if (t.classList && t.classList.contains('buy-lootbox')) {
+                const type = t.getAttribute('data-type');
+                const lootbox = lootboxTypes[type];
+                if (coins >= lootbox.price) {
+                    coins -= lootbox.price; updateCoinsDisplay();
+                    const itemName = lootbox.name;
+                    if (inventory[itemName]) inventory[itemName].count++;
+                    else inventory[itemName] = { name: itemName, emoji: lootbox.emoji, type: 'lootbox', lootboxType: type, count: 1 };
+                    updateInventoryDisplay();
+                    showToast(`✅ Ты купил ${lootbox.name} за ${lootbox.price} монет!`, 2500);
+                } else showToast(`❌ Не хватает монет! Нужно ${lootbox.price}`, 2000);
+            }
+        });
+
+        function openLootbox(lootboxName, lootboxType) {
+            const pool = lootPools[lootboxType];
+            if (!pool) return;
+            const reward = pool[Math.floor(Math.random() * pool.length)];
+            if (inventory[reward.name]) inventory[reward.name].count++;
+            else inventory[reward.name] = { name: reward.name, emoji: reward.emoji, price: reward.price, type: 'item', count: 1 };
+            if (inventory[lootboxName]) { inventory[lootboxName].count--; if (inventory[lootboxName].count === 0) delete inventory[lootboxName]; }
+            recalculateStats(); updateInventoryDisplay();
+            showToast(`🔓 Ты открыл ${lootboxName} и получил ${reward.emoji} ${reward.name}!`, 2500);
+        }
+
+        const invContainer = document.getElementById('inventoryList');
+        invContainer.addEventListener('click', (e) => {
+            const t = e.target;
+            if (t.classList && t.classList.contains('open-lootbox-btn')) {
+                openLootbox(t.getAttribute('data-lootbox-name'), t.getAttribute('data-lootbox-type'));
+            }
+            if (t.classList && t.classList.contains('sell-btn')) {
+                const itemName = t.getAttribute('data-item');
+                const buyPrice = parseInt(t.getAttribute('data-price'));
+                const sellPrice = Math.floor(buyPrice / 2);
+                const item = inventory[itemName];
+                if (item && item.count > 0) {
+                    coins += sellPrice; item.count--;
+                    if (item.count === 0) delete inventory[itemName];
+                    updateCoinsDisplay(); recalculateStats(); updateInventoryDisplay();
+                    showToast(`💰 Ты продал ${itemName} за ${sellPrice} монет.`, 2000);
+                }
+            }
+        });
+
+        let damagePrice=10, speedPrice=10, hpPrice=10;
+        function updateUpgradeButtons() {
+            const d = document.querySelector('.upgrade-stat[data-stat="damage"]');
+            const s = document.querySelector('.upgrade-stat[data-stat="speed"]');
+            const h = document.querySelector('.upgrade-stat[data-stat="hp"]');
+            if(d) d.innerText = `+1 (${damagePrice} монет)`;
+            if(s) s.innerText = `+1 (${speedPrice} монет)`;
+            if(h) h.innerText = `+1 (${hpPrice} монет)`;
+        }
+        document.querySelector('#overlayStats .big-square').addEventListener('click', (e) => {
+            const t = e.target;
+            if (t.classList && t.classList.contains('upgrade-stat')) {
+                const stat = t.getAttribute('data-stat');
+                let price = stat==='damage'?damagePrice:(stat==='speed'?speedPrice:hpPrice);
+                if(coins >= price){
+                    coins -= price; updateCoinsDisplay();
+                    if(stat==='damage'){ baseDamage++; damagePrice+=5; }
+                    else if(stat==='speed'){ baseSpeed++; speedPrice+=5; }
+                    else if(stat==='hp'){ baseHp++; hpPrice+=5; currentHp++; }
+                    recalculateStats(); updateUpgradeButtons();
+                    showToast(`✅ ${stat.toUpperCase()} увеличен!`,1500);
+                } else showToast(`❌ Не хватает монет! Нужно ${price}`,1500);
+            }
+        });
+
+        const statsButton = document.getElementById('statsButton');
+        const overlayStats = document.getElementById('overlayStats');
+        const closeStats = document.getElementById('closeBtnStats');
+        statsButton.addEventListener('click', () => { recalculateStats(); updateUpgradeButtons(); overlayStats.style.display = 'flex'; });
+        closeStats.addEventListener('click', () => overlayStats.style.display = 'none');
+        overlayStats.addEventListener('click', (e)=>{ if(e.target===overlayStats) overlayStats.style.display='none'; });
+
+        document.getElementById('cheatCoins').addEventListener('click', ()=>{ coins+=100; updateCoinsDisplay(); showToast(`+100 монет! Теперь у вас ${coins}`); });
+        document.getElementById('resetGameBtn').addEventListener('click', () => {
+    if (confirm('Начать новую игру? Весь прогресс (монеты, инвентарь, статы, убийства, карта, персонажи) будет потерян!')) {
+        localStorage.removeItem('lootboxGame');
+        localStorage.removeItem('mannequinKills');
+        localStorage.removeItem('customWalls');
+        // Удаляем все ключи прокачки персонажей
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('upgraded_')) {
+                localStorage.removeItem(key);
+            }
+        }
+        location.reload();
+    }
+});
+        // ========== РЕДАКТОР КАРТ ==========
+        let walls = [];
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        function loadWallsForEditor() {
+            const saved = localStorage.getItem('customWalls');
+            if(saved) try{ walls = JSON.parse(saved); } catch(e){ walls = []; }
+            if(!walls.length) walls = [{ x: 100, y: 100, w: 100, h: 80 }];
+            drawCanvas(); updateWallsPanel();
+        }
+        function drawCanvas() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle='#2c3e50'; ctx.fillRect(0,0,canvas.width,canvas.height);
+            walls.forEach(w=>{ ctx.fillStyle='#7f8c8d'; ctx.fillRect(w.x,w.y,w.w,w.h); ctx.strokeStyle='white'; ctx.strokeRect(w.x,w.y,w.w,w.h); });
+        }
+        function saveWallsToLocal() { localStorage.setItem('customWalls', JSON.stringify(walls)); showToast('Стены сохранены!',1500); }
+        function updateWallsPanel() {
+            const container = document.getElementById('wallsListPanel');
+            container.innerHTML='';
+            walls.forEach((wall,idx)=>{
+                const div = document.createElement('div'); div.className='wall-item'; div.setAttribute('data-idx',idx); div.draggable=true;
+                div.innerHTML = `<div>📦 Стена ${idx+1}: (${wall.x},${wall.y}) ${wall.w}x${wall.h}</div><div class="wall-buttons"><button class="delete-wall" data-idx="${idx}">❌ Удалить</button></div>`;
+                div.addEventListener('dragstart',(e)=>{ e.dataTransfer.setData('text/plain',idx); div.classList.add('dragging'); });
+                div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); });
+                container.appendChild(div);
+            });
+            document.querySelectorAll('.delete-wall').forEach(btn=>{
+                btn.addEventListener('click',(e)=>{ const idx=parseInt(btn.getAttribute('data-idx')); walls.splice(idx,1); drawCanvas(); updateWallsPanel(); saveWallsToLocal(); });
+            });
+        }
+        function addWall(x,y,w,h){
+            x = Math.min(Math.max(x,0), canvas.width-w);
+            y = Math.min(Math.max(y,0), canvas.height-h);
+            walls.push({x,y,w,h}); drawCanvas(); updateWallsPanel(); saveWallsToLocal();
+        }
+        canvas.addEventListener('dragover', e=> e.preventDefault());
+        canvas.addEventListener('drop', e=>{
+            e.preventDefault();
+            const idx = e.dataTransfer.getData('text/plain');
+            if(idx==='') return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+            let mx = (e.clientX - rect.left)*scaleX, my = (e.clientY - rect.top)*scaleY;
+            const wall = walls[parseInt(idx)];
+            if(wall){
+                wall.x = Math.min(Math.max(mx - wall.w/2, 0), canvas.width - wall.w);
+                wall.y = Math.min(Math.max(my - wall.h/2, 0), canvas.height - wall.h);
+                drawCanvas(); updateWallsPanel(); saveWallsToLocal();
+            }
+        });
+        canvas.addEventListener('click', (e)=>{
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+            let mx = (e.clientX - rect.left)*scaleX, my = (e.clientY - rect.top)*scaleY;
+            addWall(mx-40, my-30, 80, 60);
+        });
+        document.getElementById('addWallByCoordsBtn')?.addEventListener('click',()=>{
+            let x=parseInt(document.getElementById('newWallX').value)||150, y=parseInt(document.getElementById('newWallY').value)||150;
+            let w=Math.min(Math.max(parseInt(document.getElementById('newWallW').value)||80,20),200);
+            let h=Math.min(Math.max(parseInt(document.getElementById('newWallH').value)||60,20),200);
+            addWall(x,y,w,h);
+        });
+        document.getElementById('saveWallsBtn')?.addEventListener('click', ()=>{ saveWallsToLocal(); });
+        document.getElementById('resetWallsBtn')?.addEventListener('click',()=>{ if(confirm('Удалить все стены?')){ walls=[]; drawCanvas(); updateWallsPanel(); saveWallsToLocal(); } });
+        const editorBtn = document.getElementById('editorButton');
+        const editorOverlay = document.getElementById('overlayEditor');
+        const editorClose = document.getElementById('closeBtnEditor');
+        editorBtn?.addEventListener('click',()=>{ loadWallsForEditor(); editorOverlay.style.display='flex'; });
+        editorClose?.addEventListener('click',()=> editorOverlay.style.display='none');
+        editorOverlay?.addEventListener('click',(e)=>{ if(e.target===editorOverlay) editorOverlay.style.display='none'; });
+
+        // ========== ИНИЦИАЛИЗАЦИЯ ==========
+        loadGameData();
+        updateUpgradeButtons();
+        loadWallsForEditor();
+
+        // Обновляем превью при фокусе (например, после возврата из procachca.html)
+        window.addEventListener('focus', () => { loadGameData(); updateCharacterPreview(); });
+        window.addEventListener('pageshow', () => { loadGameData(); updateCharacterPreview(); });
+        document.getElementById('lucheButton').addEventListener('click', () => {
+    window.location.href = 'luche.html';
+});
+    </script>
+</body>
+</html>
